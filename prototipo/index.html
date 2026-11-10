@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gráfica – Orçamento por m²</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout: barra lateral fixa + área de trabalho em 2 colunas (arte/produto | orçamento) */
+  --ink: #142B44;        /* texto principal / tinta */
+  --paper: #F4F6F8;      /* fundo da página */
+  --sheet: #FFFFFF;      /* cartões */
+  --line: #D9E0E7;       /* bordas */
+  --muted: #5F7184;      /* texto secundário */
+  --accent: #0B7A8A;     /* ciano de impressão (ação principal) */
+  --accent-soft: #E1F2F4;
+  --ok: #1C8A4E; --ok-soft: #E3F4EA;
+  --warn: #B26B00; --warn-soft: #FCF0DC;
+  --bad: #C0392B; --bad-soft: #FBE6E3;
+  --side: #10243A; --side-ink: #C9D6E3;
+  --f-display: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --r: 14px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #E3EAF1; --paper: #0E1822; --sheet: #15222F; --line: #26384A; --muted: #93A5B7;
+    --accent: #3CB5C5; --accent-soft: #143843;
+    --ok: #4CC17F; --ok-soft: #133426; --warn: #E3A23A; --warn-soft: #3A2B12; --bad: #EF7466; --bad-soft: #3D1C19;
+    --side: #0A131C; --side-ink: #B5C4D3; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #E3EAF1; --paper: #0E1822; --sheet: #15222F; --line: #26384A; --muted: #93A5B7;
+  --accent: #3CB5C5; --accent-soft: #143843;
+  --ok: #4CC17F; --ok-soft: #133426; --warn: #E3A23A; --warn-soft: #3A2B12; --bad: #EF7466; --bad-soft: #3D1C19;
+  --side: #0A131C; --side-ink: #B5C4D3; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.5 var(--f-body); }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+.app { display: grid; grid-template-columns: 228px 1fr; min-height: 100%; }
+aside { background: var(--side); color: var(--side-ink); padding: 22px 14px; display: flex; flex-direction: column; gap: 22px; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
+.brand-mark { width: 30px; height: 30px; border-radius: 9px; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; flex: none; }
+.brand-mark i:nth-child(1){background:#00A3C4}.brand-mark i:nth-child(2){background:#D6247A}.brand-mark i:nth-child(3){background:#F2C500}.brand-mark i:nth-child(4){background:#222}
+.brand b { font-family: var(--f-display); font-size: 16px; color: #fff; display: block; line-height: 1.15; }
+.brand small { font-size: 11.5px; opacity: .75; }
+nav { display: flex; flex-direction: column; gap: 4px; }
+nav a { color: inherit; text-decoration: none; padding: 10px 12px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; font-weight: 500; }
+nav a:hover { background: rgba(255,255,255,.06); }
+nav a.on { background: rgba(60,181,197,.16); color: #fff; box-shadow: inset 3px 0 0 #3CB5C5; }
+.pill { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: rgba(255,255,255,.1); }
+.pill.alert { background: #B26B00; color: #fff; }
+.side-note { margin-top: auto; font-size: 12px; opacity: .7; padding: 0 8px; }
+
+main { padding: 26px clamp(16px, 3vw, 36px) 40px; min-width: 0; }
+.head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.head h1 { font-size: 26px; font-weight: 800; letter-spacing: -.01em; }
+.head p { margin: 2px 0 0; color: var(--muted); }
+.view { display: none; }
+.view.on { display: block; }
+
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.stack { display: flex; flex-direction: column; gap: 20px; }
+.card { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; }
+.card h2 { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.step { width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font: 600 12.5px var(--f-mono); display: grid; place-items: center; flex: none; }
+
+.drop { border: 1.5px dashed var(--line); border-radius: 12px; padding: 16px; display: grid; grid-template-columns: 150px 1fr; gap: 16px; align-items: center; cursor: pointer; transition: border-color .15s, background .15s; }
+.drop:hover, .drop.drag { border-color: var(--accent); background: var(--accent-soft); }
+.thumb { width: 150px; height: 150px; border-radius: 10px; background: repeating-conic-gradient(var(--line) 0 25%, transparent 0 50%) 0 0/16px 16px; display: grid; place-items: center; overflow: hidden; position: relative; }
+.thumb canvas { max-width: 100%; max-height: 100%; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+.thumb span { font-size: 12px; color: var(--muted); text-align: center; padding: 8px; }
+.drop-info strong { display: block; font-size: 15px; word-break: break-all; }
+.drop-info p { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; }
+.dims { font: 600 22px var(--f-mono); margin-top: 6px; color: var(--ink); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+.chips > span { font-size: 12.5px; color: var(--muted); }
+.chip { border: 1px solid var(--line); background: var(--sheet); border-radius: 99px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; }
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 14px; }
+label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+label.f input, label.f select { border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 9px 11px; font-weight: 400; font-size: 14.5px; color: var(--ink); width: 100%; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+.seg button { border: 0; background: transparent; border-radius: 9px; padding: 9px 6px; cursor: pointer; font-weight: 600; font-size: 14px; }
+.seg button.on { background: var(--sheet); color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+.opts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; font-size: 14px; }
+.opts label { display: flex; gap: 7px; align-items: center; cursor: pointer; }
+.opts input[type=radio], .opts input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
+.preview { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: var(--paper); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13.5px; color: var(--muted); }
+.preview b { color: var(--ink); }
+
+.btn { border: 1px solid transparent; border-radius: 11px; padding: 10px 16px; font-weight: 600; cursor: pointer; font-size: 14px; transition: filter .15s; }
+.btn:hover { filter: brightness(1.07); }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.ok { background: var(--ok); color: #fff; }
+.btn.ghost { background: transparent; border-color: var(--line); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.row-end { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+.quote-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.status { font-size: 12px; font-weight: 700; letter-spacing: .04em; padding: 3px 10px; border-radius: 99px; text-transform: uppercase; }
+.status.aberto { background: var(--accent-soft); color: var(--accent); }
+.status.aprovado { background: var(--ok-soft); color: var(--ok); }
+.items { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.item { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.item .t { font-weight: 600; }
+.item .d { grid-column: 1 / 2; font-size: 12.5px; color: var(--muted); }
+.item .v { font-size: 15px; text-align: right; }
+.item .x { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; }
+.item .x:hover { color: var(--bad); }
+.empty { color: var(--muted); padding: 18px 0; text-align: center; font-size: 14px; }
+.tot { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin-top: 14px; font-size: 14.5px; }
+.tot .lbl { color: var(--muted); }
+.tot .big { font: 700 26px var(--f-mono); color: var(--ok); }
+.tot .bigl { font-weight: 700; align-self: center; }
+.hint { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.msg { margin-top: 14px; padding: 10px 14px; border-radius: 10px; font-size: 13.5px; display: none; }
+.msg.show { display: block; }
+.msg.ok { background: var(--ok-soft); color: var(--ok); }
+.msg.bad { background: var(--bad-soft); color: var(--bad); }
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.kpi { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
+.kpi small { color: var(--muted); font-size: 12.5px; font-weight: 600; }
+.kpi div { font: 600 24px var(--f-mono); margin-top: 2px; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr.low td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+.bar { height: 8px; background: var(--paper); border-radius: 99px; overflow: hidden; min-width: 110px; position: relative; }
+.bar i { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
+.bar b { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink); opacity: .55; }
+tr.low .bar i { background: var(--warn); }
+.tag { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
+.tag.ok { background: var(--ok-soft); color: var(--ok); }
+.tag.warn { background: var(--warn-soft); color: var(--warn); }
+.tag.amb { background: var(--paper); color: var(--muted); font-weight: 600; }
+.repor { display: flex; gap: 6px; }
+.repor input { width: 70px; border: 1px solid var(--line); border-radius: 9px; padding: 6px 8px; background: var(--paper); }
+.repor button { padding: 6px 12px; font-size: 13px; }
+
+.log { display: flex; flex-direction: column; gap: 0; }
+.ev { display: grid; grid-template-columns: 74px 190px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; align-items: baseline; }
+.ev time { color: var(--muted); font-family: var(--f-mono); font-size: 12.5px; }
+.ev code { font-family: var(--f-mono); font-size: 12.5px; padding: 2px 8px; border-radius: 7px; background: var(--accent-soft); color: var(--accent); justify-self: start; }
+.ev code.estoque_baixo, .ev code.estoque_insuficiente { background: var(--warn-soft); color: var(--warn); }
+.ev code.orcamento_aprovado, .ev code.estoque_baixado { background: var(--ok-soft); color: var(--ok); }
+.ev span { color: var(--ink); }
+.rules { columns: 2 260px; column-gap: 28px; font-size: 13.5px; color: var(--muted); margin: 0; padding-left: 18px; }
+.rules li { margin-bottom: 6px; break-inside: avoid; }
+.rules b { color: var(--ink); }
+
+@media (max-width: 960px) { .grid2 { grid-template-columns: 1fr; } }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; }
+  aside { flex-direction: row; align-items: center; padding: 12px 14px; gap: 12px; position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
+  .brand small, .side-note { display: none; }
+  nav { flex-direction: row; gap: 4px; flex: 1; justify-content: flex-end; }
+  nav a { padding: 8px 10px; font-size: 13.5px; gap: 6px; }
+  nav a.on { box-shadow: inset 0 -2px 0 #3CB5C5; }
+  .drop { grid-template-columns: 1fr; }
+  .thumb { width: 100%; height: 170px; }
+  .ev { grid-template-columns: 64px 1fr; }
+  .ev span { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div><b>Gráfica</b><small>Orçamento por m²</small></div>
+    </div>
+    <nav>
+      <a href="#orcamento" data-v="orcamento">Orçamento</a>
+      <a href="#estoque" data-v="estoque">Estoque <span class="pill" id="navLow">0</span></a>
+      <a href="#eventos" data-v="eventos">Eventos <span class="pill" id="navEv">0</span></a>
+    </nav>
+    <div class="side-note">Protótipo – Projeto Integrador “Paradigmas em Ação”. Dados em memória: recarregar a página volta ao estado inicial.</div>
+  </aside>
+
+  <main>
+    <!-- ================= ORÇAMENTO ================= -->
+    <section class="view" id="v-orcamento">
+      <div class="head">
+        <div><h1>Novo orçamento</h1><p>Envie a arte em PDF no tamanho de impressão; o sistema mede a página e calcula o preço.</p></div>
+      </div>
+      <div class="grid2">
+        <div class="stack">
+          <div class="card">
+            <h2><span class="step">1</span>Arte do cliente</h2>
+            <div class="drop" id="drop" tabindex="0" role="button" aria-label="Escolher arquivo PDF da arte">
+              <div class="thumb" id="thumb"><span>Pré-visualização</span></div>
+              <div class="drop-info">
+                <strong id="fileName">Arraste o PDF aqui ou toque para escolher</strong>
+                <p id="fileNote">Lemos o tamanho da 1ª página do PDF (1 pt = 1/72 pol = 0,03528 cm).</p>
+                <div class="dims" id="dimsBig">— × — cm</div>
+              </div>
+            </div>
+            <input type="file" id="file" accept="application/pdf,.pdf" hidden>
+            <div class="chips"><span>Exemplos:</span>
+              <button class="chip" data-ex="banner">Banner 90×120</button>
+              <button class="chip" data-ex="adesivo">Adesivo 30×30</button>
+              <button class="chip" data-ex="placa">Placa 60×40</button>
+            </div>
+            <div class="fields">
+              <label class="f" for="escala">Escala da arte
+                <select id="escala"><option value="1">1:1 real</option><option value="10">1:10</option><option value="100">1:100</option></select>
+              </label>
+              <label class="f" for="larg">Largura final (cm)<input id="larg" type="number" min="1" step="0.1" inputmode="decimal"></label>
+              <label class="f" for="alt">Altura final (cm)<input id="alt" type="number" min="1" step="0.1" inputmode="decimal"></label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2><span class="step">2</span>Produto e acabamento</h2>
+            <div class="seg" id="prodSeg" role="tablist">
+              <button data-p="banner" class="on">Banner</button>
+              <button data-p="adesivo">Adesivo</button>
+              <button data-p="placa">Placa PVC</button>
+            </div>
+            <div class="fields">
+              <label class="f" for="material">Material<select id="material"></select></label>
+              <label class="f" for="qtd">Quantidade<input id="qtd" type="number" min="1" step="1" value="1" inputmode="numeric"></label>
+            </div>
+            <div class="opts" id="opts"></div>
+            <div class="preview" id="prev"></div>
+            <div class="row-end"><button class="btn primary" id="add">Adicionar ao orçamento</button></div>
+          </div>
+        </div>
+
+        <div class="card" id="quoteCard">
+          <h2><span class="step">3</span>Orçamento</h2>
+          <div class="quote-meta">
+            <label class="f" for="cliente" style="flex:1;min-width:180px">Cliente<input id="cliente" value="Padaria Pão Quente"></label>
+            <div><span class="num" id="qNum" style="color:var(--muted);font-size:13px;margin-right:8px"></span><span class="status aberto" id="qStatus">Aberto</span></div>
+          </div>
+          <div class="items" id="items"></div>
+          <div class="tot">
+            <span class="lbl">Subtotal</span><span class="num" id="sub"></span>
+            <span class="lbl" id="descL">Desconto</span><span class="num" id="desc"></span>
+            <span class="bigl">Total</span><span class="big" id="total"></span>
+          </div>
+          <p class="hint">Desconto automático: 5% a partir de R$ 500 e 10% a partir de R$ 1.500. Área mínima cobrada: 0,25 m² por item.</p>
+          <div class="msg" id="qMsg"></div>
+          <div class="row-end">
+            <button class="btn ghost" id="novo">Novo orçamento</button>
+            <button class="btn ok" id="aprovar">Aprovar e baixar estoque</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ESTOQUE ================= -->
+    <section class="view" id="v-estoque">
+      <div class="head"><div><h1>Estoque de materiais</h1><p>Saldo em m². Cada aprovação baixa a área produzida + 10% de perda.</p></div></div>
+      <div class="kpis">
+        <div class="kpi"><small>Materiais cadastrados</small><div id="kMat">0</div></div>
+        <div class="kpi"><small>Abaixo do mínimo</small><div id="kLow" style="color:var(--warn)">0</div></div>
+        <div class="kpi"><small>Orçamentos aprovados</small><div id="kAp">0</div></div>
+        <div class="kpi"><small>Faturado (aprovados)</small><div id="kFat" style="color:var(--ok)">R$ 0,00</div></div>
+      </div>
+      <div class="card">
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Material</th><th>Ambiente</th><th>R$/m²</th><th>Saldo (m²)</th><th>Nível (traço = mínimo)</th><th>Situação</th><th>Repor (m²)</th></tr></thead>
+            <tbody id="stock"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= EVENTOS ================= -->
+    <section class="view" id="v-eventos">
+      <div class="head"><div><h1>Linha do tempo de eventos</h1><p>O sistema reage a acontecimentos: cada evento publicado dispara os tratadores inscritos nele.</p></div></div>
+      <div class="stack">
+        <div class="card"><div class="log" id="log"></div></div>
+        <div class="card">
+          <h2>Regras usadas no cálculo</h2>
+          <ul class="rules">
+            <li><b>Material:</b> área total (área da arte × quantidade, mínimo 0,25 m²) × preço do m².</li>
+            <li><b>Banner:</b> ilhós a cada 50 cm de perímetro (R$ 0,80 cada) ou bastão R$ 0,15/cm de largura + corda R$ 3,00, por unidade.</li>
+            <li><b>Adesivo:</b> laminação R$ 25/m² e recorte eletrônico R$ 18/m² sobre a área cobrada.</li>
+            <li><b>Placa PVC:</b> corte R$ 6,00 por metro de perímetro + R$ 1,50 por furo, por unidade.</li>
+            <li><b>Compatibilidade:</b> banner só em lona, adesivo só em vinil, placa só em PVC.</li>
+            <li><b>Aprovação:</b> tudo ou nada; se faltar qualquer material, nada é baixado.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script>
+/* ======================= DADOS ======================= */
+const EXEMPLOS = { banner: "JVBERi0xLjQKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSIC9GMiAzIDAgUgo+PgplbmRvYmoKMiAwIG9iago8PAovQmFzZUZvbnQgL0hlbHZldGljYSAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjEgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iagozIDAgb2JqCjw8Ci9CYXNlRm9udCAvSGVsdmV0aWNhLUJvbGQgL0VuY29kaW5nIC9XaW5BbnNpRW5jb2RpbmcgL05hbWUgL0YyIC9TdWJ0eXBlIC9UeXBlMSAvVHlwZSAvRm9udAo+PgplbmRvYmoKNCAwIG9iago8PAovQ29udGVudHMgOCAwIFIgL01lZGlhQm94IFsgMCAwIDI1NTEuMTgxIDM0MDEuNTc1IF0gL1BhcmVudCA3IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iago1IDAgb2JqCjw8Ci9QYWdlTW9kZSAvVXNlTm9uZSAvUGFnZXMgNyAwIFIgL1R5cGUgL0NhdGFsb2cKPj4KZW5kb2JqCjYgMCBvYmoKPDwKL0F1dGhvciAoYW5vbnltb3VzKSAvQ3JlYXRpb25EYXRlIChEOjIwMjYxMTA5MTkxMjQzLTAzJzAwJykgL0NyZWF0b3IgKGFub255bW91cykgL0tleXdvcmRzICgpIC9Nb2REYXRlIChEOjIwMjYxMTA5MTkxMjQzLTAzJzAwJykgL1Byb2R1Y2VyIChSZXBvcnRMYWIgUERGIExpYnJhcnkgLSBcKG9wZW5zb3VyY2VcKSkgCiAgL1N1YmplY3QgKHVuc3BlY2lmaWVkKSAvVGl0bGUgKHVudGl0bGVkKSAvVHJhcHBlZCAvRmFsc2UKPj4KZW5kb2JqCjcgMCBvYmoKPDwKL0NvdW50IDEgL0tpZHMgWyA0IDAgUiBdIC9UeXBlIC9QYWdlcwo+PgplbmRvYmoKOCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCAyMDUKPj4Kc3RyZWFtCkdhcEBHWW1RK0smNEhFbU1DQjJeUyhnKyNlblpROSFmNytBO1Y/YVAiQUllUyhJPTE3Zj9LZG5HXi9fdHBDLE9oazo7L2dHbSdJNSwyXmRZOCNER0EjKU5KSiJRRU5QMGVBT2NELlFSVWllZT0/Y19SRj80cj1bSj1MMVw9MUNIU2A3M0JHNChLNDU6XDhUbEI1SmZDYi1JTl9UZlhyVDQlIWZrT2ZscktwI2k6PG82XGU8ZT5QaTEzW1E+W19PYy5ga3BCTU8/L0A1fj5lbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCA5CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDA2MSAwMDAwMCBuIAowMDAwMDAwMTAyIDAwMDAwIG4gCjAwMDAwMDAyMDkgMDAwMDAgbiAKMDAwMDAwMDMyMSAwMDAwMCBuIAowMDAwMDAwNTI0IDAwMDAwIG4gCjAwMDAwMDA1OTIgMDAwMDAgbiAKMDAwMDAwMDg1MyAwMDAwMCBuIAowMDAwMDAwOTEyIDAwMDAwIG4gCnRyYWlsZXIKPDwKL0lEIApbPDBjYzg4OGQ0YjM3MjU1Zjc0MDc2ZmFmM2U0Yzg3NTBjPjwwY2M4ODhkNGIzNzI1NWY3NDA3NmZhZjNlNGM4NzUwYz5dCiUgUmVwb3J0TGFiIGdlbmVyYXRlZCBQREYgZG9jdW1lbnQgLS0gZGlnZXN0IChvcGVuc291cmNlKQoKL0luZm8gNiAwIFIKL1Jvb3QgNSAwIFIKL1NpemUgOQo+PgpzdGFydHhyZWYKMTIwNwolJUVPRgo=", adesivo: "JVBERi0xLjQKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSIC9GMiAzIDAgUgo+PgplbmRvYmoKMiAwIG9iago8PAovQmFzZUZvbnQgL0hlbHZldGljYSAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjEgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iagozIDAgb2JqCjw8Ci9CYXNlRm9udCAvSGVsdmV0aWNhLUJvbGQgL0VuY29kaW5nIC9XaW5BbnNpRW5jb2RpbmcgL05hbWUgL0YyIC9TdWJ0eXBlIC9UeXBlMSAvVHlwZSAvRm9udAo+PgplbmRvYmoKNCAwIG9iago8PAovQ29udGVudHMgOCAwIFIgL01lZGlhQm94IFsgMCAwIDg1MC4zOTM3IDg1MC4zOTM3IF0gL1BhcmVudCA3IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iago1IDAgb2JqCjw8Ci9QYWdlTW9kZSAvVXNlTm9uZSAvUGFnZXMgNyAwIFIgL1R5cGUgL0NhdGFsb2cKPj4KZW5kb2JqCjYgMCBvYmoKPDwKL0F1dGhvciAoYW5vbnltb3VzKSAvQ3JlYXRpb25EYXRlIChEOjIwMjYxMTA5MTkxMjQzLTAzJzAwJykgL0NyZWF0b3IgKGFub255bW91cykgL0tleXdvcmRzICgpIC9Nb2REYXRlIChEOjIwMjYxMTA5MTkxMjQzLTAzJzAwJykgL1Byb2R1Y2VyIChSZXBvcnRMYWIgUERGIExpYnJhcnkgLSBcKG9wZW5zb3VyY2VcKSkgCiAgL1N1YmplY3QgKHVuc3BlY2lmaWVkKSAvVGl0bGUgKHVudGl0bGVkKSAvVHJhcHBlZCAvRmFsc2UKPj4KZW5kb2JqCjcgMCBvYmoKPDwKL0NvdW50IDEgL0tpZHMgWyA0IDAgUiBdIC9UeXBlIC9QYWdlcwo+PgplbmRvYmoKOCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCAxNzQKPj4Kc3RyZWFtCkdhcTJ0M3NwVSonXllRLjteTjg1cWdQXiYkOnUvUGsxcS5KK15iWkc/XEIuOyRrLShZTy0sUkAjSlcwKSUsO200KDtwODQxO25pbSxpVSJjJ2RUWlgiazZXb3FqUDVoR2puQzFbSlwjQ2BtUS8mX25OIkM9XHNFYkZqbm9LUjBGPWtGKDoxIyNYX2I5bDxsO2NpbkBKUEw8REQ8azo+UEVrYUVVWCNCQ3E3KF1+PmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDkKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDYxIDAwMDAwIG4gCjAwMDAwMDAxMDIgMDAwMDAgbiAKMDAwMDAwMDIwOSAwMDAwMCBuIAowMDAwMDAwMzIxIDAwMDAwIG4gCjAwMDAwMDA1MjQgMDAwMDAgbiAKMDAwMDAwMDU5MiAwMDAwMCBuIAowMDAwMDAwODUzIDAwMDAwIG4gCjAwMDAwMDA5MTIgMDAwMDAgbiAKdHJhaWxlcgo8PAovSUQgCls8YzgwZTdmMDJhNWVkZDFmODliYTI5NjExZWVlODQ5YjQ+PGM4MGU3ZjAyYTVlZGQxZjg5YmEyOTYxMWVlZTg0OWI0Pl0KJSBSZXBvcnRMYWIgZ2VuZXJhdGVkIFBERiBkb2N1bWVudCAtLSBkaWdlc3QgKG9wZW5zb3VyY2UpCgovSW5mbyA2IDAgUgovUm9vdCA1IDAgUgovU2l6ZSA5Cj4+CnN0YXJ0eHJlZgoxMTc2CiUlRU9GCg==", placa: "JVBERi0xLjQKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSIC9GMiAzIDAgUgo+PgplbmRvYmoKMiAwIG9iago8PAovQmFzZUZvbnQgL0hlbHZldGljYSAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjEgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iagozIDAgb2JqCjw8Ci9CYXNlRm9udCAvSGVsdmV0aWNhLUJvbGQgL0VuY29kaW5nIC9XaW5BbnNpRW5jb2RpbmcgL05hbWUgL0YyIC9TdWJ0eXBlIC9UeXBlMSAvVHlwZSAvRm9udAo+PgplbmRvYmoKNCAwIG9iago8PAovQ29udGVudHMgOCAwIFIgL01lZGlhQm94IFsgMCAwIDE3MDAuNzg3IDExMzMuODU4IF0gL1BhcmVudCA3IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iago1IDAgb2JqCjw8Ci9QYWdlTW9kZSAvVXNlTm9uZSAvUGFnZXMgNyAwIFIgL1R5cGUgL0NhdGFsb2cKPj4KZW5kb2JqCjYgMCBvYmoKPDwKL0F1dGhvciAoYW5vbnltb3VzKSAvQ3JlYXRpb25EYXRlIChEOjIwMjYxMTA5MTkxMjQzLTAzJzAwJykgL0NyZWF0b3IgKGFub255bW91cykgL0tleXdvcmRzICgpIC9Nb2REYXRlIChEOjIwMjYxMTA5MTkxMjQzLTAzJzAwJykgL1Byb2R1Y2VyIChSZXBvcnRMYWIgUERGIExpYnJhcnkgLSBcKG9wZW5zb3VyY2VcKSkgCiAgL1N1YmplY3QgKHVuc3BlY2lmaWVkKSAvVGl0bGUgKHVudGl0bGVkKSAvVHJhcHBlZCAvRmFsc2UKPj4KZW5kb2JqCjcgMCBvYmoKPDwKL0NvdW50IDEgL0tpZHMgWyA0IDAgUiBdIC9UeXBlIC9QYWdlcwo+PgplbmRvYmoKOCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCAxODAKPj4Kc3RyZWFtCkdhcEBHXElRSkEmND8/biRDP2lgPU81aTgsK3RaPzhpZj9hK2JfLT8/X0FDRW9LIzQrbkY1QVVwQyVJYmJGUDxDN1BJR2Y0YEUyKTlcTFs2XFM9WTkma1wxPD09M2RzJ3ViTUtbPUFaT0M4dEIiKGN0Nmg9WExWRyglYHQ+UUpKX28xJCpGbCUhRVU2RWhoXkYnSWRbL2cnRjBmSE00UFhGUkBEWTA8QUE+RS44ODgtZnR+PmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDkKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDYxIDAwMDAwIG4gCjAwMDAwMDAxMDIgMDAwMDAgbiAKMDAwMDAwMDIwOSAwMDAwMCBuIAowMDAwMDAwMzIxIDAwMDAwIG4gCjAwMDAwMDA1MjQgMDAwMDAgbiAKMDAwMDAwMDU5MiAwMDAwMCBuIAowMDAwMDAwODUzIDAwMDAwIG4gCjAwMDAwMDA5MTIgMDAwMDAgbiAKdHJhaWxlcgo8PAovSUQgCls8MDJhZjY5ZDhmNmFmM2Y4YTVjMDljOTIwOTQ3NDAxZjI+PDAyYWY2OWQ4ZjZhZjNmOGE1YzA5YzkyMDk0NzQwMWYyPl0KJSBSZXBvcnRMYWIgZ2VuZXJhdGVkIFBERiBkb2N1bWVudCAtLSBkaWdlc3QgKG9wZW5zb3VyY2UpCgovSW5mbyA2IDAgUgovUm9vdCA1IDAgUgovU2l6ZSA5Cj4+CnN0YXJ0eHJlZgoxMTgyCiUlRU9GCg==" };
+const EX_NOMES = { banner: "banner_promocao_90x120.pdf", adesivo: "adesivo_logo_30x30.pdf", placa: "placa_saida_60x40.pdf" };
+
+const AREA_MIN = 0.25, PERDA = 0.10, PT_CM = 2.54 / 72;
+const FAIXAS = [[1500, 0.10], [500, 0.05]];
+const estoque = [
+  { cod: "LONA440", nome: "Lona 440g", preco: 45, amb: "externo", saldo: 50, min: 10 },
+  { cod: "LONA280", nome: "Lona 280g", preco: 32, amb: "interno", saldo: 8, min: 10 },
+  { cod: "VINIL_BR", nome: "Vinil branco", preco: 55, amb: "ambos", saldo: 12, min: 10 },
+  { cod: "VINIL_TR", nome: "Vinil transparente", preco: 60, amb: "interno", saldo: 4, min: 5 },
+  { cod: "VINIL_PERF", nome: "Vinil perfurado", preco: 70, amb: "externo", saldo: 6, min: 3 },
+  { cod: "PVC3MM", nome: "PVC 3mm", preco: 120, amb: "interno", saldo: 3, min: 1 },
+  { cod: "PVC5MM", nome: "PVC 5mm", preco: 160, amb: "externo", saldo: 0.5, min: 1 },
+];
+const ACEITA = { banner: ["LONA440", "LONA280"], adesivo: ["VINIL_BR", "VINIL_TR", "VINIL_PERF"], placa: ["PVC3MM", "PVC5MM"] };
+const NOME_PROD = { banner: "Banner", adesivo: "Adesivo", placa: "Placa PVC" };
+const mat = c => estoque.find(m => m.cod === c);
+const brl = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const n = (v, d = 2) => v.toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const r2 = v => Math.round(v * 100) / 100;
+
+/* ======================= REGRAS (mesmas do Python) ======================= */
+const area = it => it.l * it.a / 10000;
+const perim = it => 2 * (it.l + it.a);
+const areaCobrada = it => Math.max(area(it) * it.qtd, AREA_MIN);
+const consumo = it => area(it) * it.qtd * (1 + PERDA);
+const ACABAMENTO = {
+  banner: it => it.op.bastao ? (it.l * 0.15 + 3) * it.qtd : Math.ceil(perim(it) / 50) * 0.80 * it.qtd,
+  adesivo: it => areaCobrada(it) * ((it.op.laminado ? 25 : 0) + (it.op.recorte ? 18 : 0)),
+  placa: it => (perim(it) / 100 * 6 + 1.5 * (it.op.furos || 0)) * it.qtd,
+};
+const custoMaterial = it => areaCobrada(it) * mat(it.mat).preco;
+const precoItem = it => r2(custoMaterial(it) + ACABAMENTO[it.tipo](it));
+const pctDesc = (v, f = FAIXAS) => !f.length ? 0 : (v >= f[0][0] ? f[0][1] : pctDesc(v, f.slice(1)));
+function totais(itens) {
+  const sub = r2(itens.map(precoItem).reduce((a, b) => a + b, 0));
+  const pct = pctDesc(sub), desc = r2(sub * pct);
+  return { sub, pct, desc, total: r2(sub - desc) };
+}
+
+/* ======================= EVENTOS ======================= */
+const bus = { subs: {}, on(e, f) { (this.subs[e] ||= []).push(f); },
+  emit(e, d = {}) { [...(this.subs[e] || []), ...(this.subs["*"] || [])].forEach(f => f(e, d)); } };
+const eventos = [];
+bus.on("*", (e, d) => { eventos.unshift({ t: new Date(), e, txt: d.txt || "" }); renderLog(); });
+
+/* ======================= ESTADO ======================= */
+let orcNum = 1, aprovados = 0, faturado = 0;
+let orc = { num: orcNum, itens: [], status: "ABERTO" };
+let arte = { nome: null, lpt: 0, apt: 0 };
+let prod = "banner";
+
+/* ======================= LEITURA DO PDF ======================= */
+const $ = id => document.getElementById(id);
+function b64ToBytes(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+
+async function lerPDF(bytes, nome) {
+  $("fileName").textContent = nome; $("fileNote").textContent = "Lendo o PDF…";
+  try {
+    let w, h, info;
+    let pdfOk = false;
+    if (window.pdfjsLib) try {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+      const pg = await doc.getPage(1);
+      const v = pg.view, uu = pg.userUnit || 1;
+      w = (v[2] - v[0]) * uu; h = (v[3] - v[1]) * uu;
+      if (pg.rotate % 180) [w, h] = [h, w];
+      info = `${doc.numPages} página(s) · ${n(w, 0)} × ${n(h, 0)} pt`;
+      const vp = pg.getViewport({ scale: 1 }), c = document.createElement("canvas");
+      const s = Math.min(300 / vp.width, 300 / vp.height);
+      const vp2 = pg.getViewport({ scale: s }); c.width = vp2.width; c.height = vp2.height;
+      await pg.render({ canvasContext: c.getContext("2d"), viewport: vp2 }).promise;
+      $("thumb").replaceChildren(c);
+      pdfOk = true;
+    } catch (e) { pdfOk = false; }
+    if (!pdfOk) {
+      [w, h] = await caixaManual(bytes);
+      info = `${n(w, 0)} × ${n(h, 0)} pt (leitura direta)`;
+      $("thumb").innerHTML = "<span>Prévia indisponível</span>";
+    }
+    arte = { nome, lpt: w, apt: h };
+    $("fileNote").textContent = info;
+    aplicarEscala();
+    bus.emit("arte_recebida", { txt: `${nome} – ${n(+$("larg").value, 1)} × ${n(+$("alt").value, 1)} cm` });
+  } catch (err) {
+    $("fileNote").textContent = "Não foi possível ler este PDF. Confira o arquivo ou digite as medidas ao lado.";
+  }
+}
+/* plano B sem pdf.js: procura /TrimBox ou /MediaBox no arquivo, inclusive dentro de streams comprimidos */
+async function caixaManual(bytes) {
+  const re = /\/(TrimBox|MediaBox)\s*\[\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\]/;
+  const txt = new TextDecoder("latin1").decode(bytes);
+  let m = txt.match(re);
+  if (!m && "DecompressionStream" in window) {
+    const rs = /stream\r?\n/g; let k;
+    while (!m && (k = rs.exec(txt))) {
+      const fim = txt.indexOf("endstream", k.index); if (fim < 0) break;
+      try { const ds = new Blob([bytes.slice(rs.lastIndex, fim)]).stream().pipeThrough(new DecompressionStream("deflate"));
+        m = new TextDecoder("latin1").decode(await new Response(ds).arrayBuffer()).match(re); } catch (e) {}
+    }
+  }
+  if (!m) throw new Error("sem caixa");
+  return [Math.abs(m[4] - m[2]), Math.abs(m[5] - m[3])];
+}
+function aplicarEscala() {
+  if (!arte.lpt) return;
+  const e = +$("escala").value;
+  $("larg").value = r1(arte.lpt * PT_CM * e); $("alt").value = r1(arte.apt * PT_CM * e);
+  atualizarPrev();
+}
+const r1 = v => Math.round(v * 10) / 10;
+
+/* ======================= TELA: PRODUTO ======================= */
+function montarProduto() {
+  document.querySelectorAll("#prodSeg button").forEach(b => b.classList.toggle("on", b.dataset.p === prod));
+  $("material").innerHTML = ACEITA[prod].map(c => { const m = mat(c);
+    return `<option value="${c}">${m.nome} · R$ ${n(m.preco, 0)}/m² · ${m.amb}</option>`; }).join("");
+  const o = {
+    banner: `<label><input type="radio" name="acab" id="opIlhos" checked> Ilhós</label><label><input type="radio" name="acab" id="opBastao"> Bastão e corda</label>`,
+    adesivo: `<label><input type="checkbox" id="opLam"> Laminação</label><label><input type="checkbox" id="opRec"> Recorte eletrônico</label>`,
+    placa: `<label class="f" for="opFuros" style="flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-weight:500">Furos por placa <input id="opFuros" type="number" min="0" value="0" style="width:80px"></label>`,
+  }[prod];
+  $("opts").innerHTML = o;
+  $("opts").querySelectorAll("input").forEach(i => i.addEventListener("input", atualizarPrev));
+  atualizarPrev();
+}
+function itemAtual() {
+  const l = +$("larg").value, a = +$("alt").value, qtd = Math.max(1, Math.floor(+$("qtd").value || 1));
+  const op = prod === "banner" ? { bastao: $("opBastao").checked }
+           : prod === "adesivo" ? { laminado: $("opLam").checked, recorte: $("opRec").checked }
+           : { furos: Math.max(0, Math.floor(+$("opFuros").value || 0)) };
+  return { tipo: prod, mat: $("material").value, l, a, qtd, op, arquivo: arte.nome || "medidas digitadas" };
+}
+function atualizarPrev() {
+  const it = itemAtual(), ok = it.l > 0 && it.a > 0;
+  $("dimsBig").textContent = ok ? `${n(it.l, 1)} × ${n(it.a, 1)} cm` : "— × — cm";
+  $("add").disabled = !ok || orc.status !== "ABERTO";
+  $("prev").innerHTML = ok
+    ? `<span>Área: <b class="num">${n(area(it) * it.qtd, 3)} m²</b> · cobrada <b class="num">${n(areaCobrada(it), 3)} m²</b></span><span>Material <b class="num">${brl(custoMaterial(it))}</b> + acabamento <b class="num">${brl(ACABAMENTO[it.tipo](it))}</b> = <b class="num" style="color:var(--ok)">${brl(precoItem(it))}</b></span>`
+    : `<span>Envie um PDF ou digite largura e altura para ver o preço.</span>`;
+}
+function descreverOp(it) {
+  if (it.tipo === "banner") return it.op.bastao ? "bastão e corda" : `${Math.ceil(perim(it) / 50)} ilhós/un.`;
+  if (it.tipo === "adesivo") return [it.op.laminado && "laminado", it.op.recorte && "recorte"].filter(Boolean).join(" + ") || "sem acabamento";
+  return `corte${it.op.furos ? ` + ${it.op.furos} furos/un.` : ""}`;
+}
+
+/* ======================= TELA: ORÇAMENTO ======================= */
+function renderOrc() {
+  $("qNum").textContent = `Nº ${String(orc.num).padStart(4, "0")}`;
+  const ap = orc.status === "APROVADO";
+  $("qStatus").textContent = ap ? "Aprovado" : "Aberto";
+  $("qStatus").className = "status " + (ap ? "aprovado" : "aberto");
+  $("items").innerHTML = orc.itens.length ? orc.itens.map((it, i) => `
+    <div class="item">
+      <div class="t">${it.qtd}× ${NOME_PROD[it.tipo]} ${n(it.l, 1).replace(",0", "")}×${n(it.a, 1).replace(",0", "")} cm</div>
+      <div class="v num">${brl(precoItem(it))}</div>
+      ${ap ? "<span></span>" : `<button class="x" data-i="${i}" aria-label="Remover item">×</button>`}
+      <div class="d">${mat(it.mat).nome} · ${descreverOp(it)} · ${n(areaCobrada(it), 3)} m² cobrados</div>
+    </div>`).join("") : `<div class="empty">Nenhum item ainda. Adicione uma arte à esquerda.</div>`;
+  const t = totais(orc.itens);
+  $("sub").textContent = brl(t.sub);
+  $("descL").textContent = `Desconto (${Math.round(t.pct * 100)}%)`;
+  $("desc").textContent = "− " + brl(t.desc);
+  $("total").textContent = brl(t.total);
+  $("aprovar").disabled = ap || !orc.itens.length;
+  $("cliente").disabled = ap;
+  $("items").querySelectorAll(".x").forEach(b => b.onclick = () => { orc.itens.splice(+b.dataset.i, 1); renderOrc(); });
+  atualizarPrev();
+}
+function msg(t, tipo) { const m = $("qMsg"); m.textContent = t; m.className = "msg show " + tipo; }
+
+function aprovar() {
+  const cons = {};
+  orc.itens.forEach(it => cons[it.mat] = (cons[it.mat] || 0) + consumo(it));
+  const falta = Object.entries(cons).find(([c, a]) => mat(c).saldo < a);
+  if (falta) {
+    const [c, a] = falta;
+    const t = `Sem ${mat(c).nome} suficiente: precisa ${n(a, 3)} m², há ${n(mat(c).saldo, 3)} m². Nada foi baixado.`;
+    bus.emit("estoque_insuficiente", { txt: `Orçamento ${orc.num} – ${t}` });
+    msg(t + " Reponha na tela Estoque ou troque o material.", "bad");
+    return;
+  }
+  const t = totais(orc.itens);
+  orc.status = "APROVADO";
+  bus.emit("orcamento_aprovado", { txt: `Orçamento ${orc.num} – ${$("cliente").value} – ${brl(t.total)}` });
+  aprovados++; faturado += t.total;
+  Object.entries(cons).forEach(([c, a]) => { mat(c).saldo = Math.round((mat(c).saldo - a) * 1000) / 1000; });
+  bus.emit("estoque_baixado", { txt: Object.entries(cons).map(([c, a]) => `${c} −${n(a, 3)} m²`).join(", ") });
+  estoque.filter(m => m.saldo < m.min).forEach(m =>
+    bus.emit("estoque_baixo", { txt: `${m.nome}: ${n(m.saldo, 3)} m² (mínimo ${n(m.min, 1)}) → pedido de reposição` }));
+  msg(`Orçamento aprovado. Estoque baixado (área + 10% de perda).`, "ok");
+  renderOrc(); renderEstoque();
+}
+
+/* ======================= TELA: ESTOQUE ======================= */
+function renderEstoque() {
+  const low = estoque.filter(m => m.saldo < m.min);
+  $("stock").innerHTML = estoque.map(m => {
+    const max = Math.max(m.saldo, m.min * 2.5, 1), baixo = m.saldo < m.min;
+    return `<tr class="${baixo ? "low" : ""}">
+      <td><b>${m.nome}</b><br><small class="num" style="color:var(--muted)">${m.cod}</small></td>
+      <td><span class="tag amb">${m.amb}</span></td>
+      <td class="num">${n(m.preco)}</td>
+      <td class="num">${n(m.saldo, 3)}</td>
+      <td><div class="bar"><i style="width:${Math.min(100, m.saldo / max * 100)}%"></i><b style="left:${m.min / max * 100}%"></b></div></td>
+      <td>${baixo ? '<span class="tag warn">Repor</span>' : '<span class="tag ok">OK</span>'}</td>
+      <td><div class="repor"><input type="number" min="1" step="1" value="10" id="rp-${m.cod}" aria-label="m² para repor ${m.nome}"><button class="btn ghost" data-c="${m.cod}">Repor</button></div></td>
+    </tr>`; }).join("");
+  $("stock").querySelectorAll("button[data-c]").forEach(b => b.onclick = () => {
+    const m = mat(b.dataset.c), v = +$("rp-" + m.cod).value;
+    if (v > 0) { m.saldo = Math.round((m.saldo + v) * 1000) / 1000; bus.emit("estoque_reposto", { txt: `${m.nome} +${n(v, 1)} m² → ${n(m.saldo, 3)} m²` }); renderEstoque(); }
+  });
+  $("kMat").textContent = estoque.length; $("kLow").textContent = low.length;
+  $("kAp").textContent = aprovados; $("kFat").textContent = brl(faturado);
+  $("navLow").textContent = low.length; $("navLow").className = "pill" + (low.length ? " alert" : "");
+}
+function renderLog() {
+  $("navEv").textContent = eventos.length;
+  $("log").innerHTML = eventos.length ? eventos.map(e => `<div class="ev"><time>${e.t.toLocaleTimeString("pt-BR")}</time><code class="${e.e}">${e.e}</code><span>${e.txt}</span></div>`).join("")
+    : `<div class="empty">Nenhum evento ainda.</div>`;
+}
+
+/* ======================= NAVEGAÇÃO E LIGAÇÕES ======================= */
+function rota() {
+  const v = ["orcamento", "estoque", "eventos"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "orcamento";
+  document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
+  document.querySelectorAll("nav a").forEach(a => a.classList.toggle("on", a.dataset.v === v));
+}
+window.addEventListener("hashchange", rota);
+
+const drop = $("drop"), file = $("file");
+drop.onclick = () => file.click();
+drop.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); file.click(); } };
+["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("drag"); }));
+["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("drag"); }));
+drop.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if (f) abrirArquivo(f); });
+file.onchange = () => { if (file.files[0]) abrirArquivo(file.files[0]); file.value = ""; };
+async function abrirArquivo(f) {
+  if (!/\.pdf$/i.test(f.name) && f.type !== "application/pdf") { $("fileNote").textContent = "Envie um arquivo .pdf"; return; }
+  lerPDF(new Uint8Array(await f.arrayBuffer()), f.name);
+}
+document.querySelectorAll("[data-ex]").forEach(b => b.onclick = () => {
+  prod = b.dataset.ex; montarProduto();
+  lerPDF(b64ToBytes(EXEMPLOS[b.dataset.ex]), EX_NOMES[b.dataset.ex]);
+});
+$("escala").onchange = aplicarEscala;
+["larg", "alt", "qtd", "material"].forEach(id => $(id).addEventListener("input", atualizarPrev));
+$("prodSeg").querySelectorAll("button").forEach(b => b.onclick = () => { prod = b.dataset.p; montarProduto(); });
+$("add").onclick = () => {
+  const it = itemAtual();
+  orc.itens.push(it); $("qMsg").className = "msg";
+  bus.emit("orcamento_gerado", { txt: `Orçamento ${orc.num} – ${it.qtd}× ${NOME_PROD[it.tipo]} em ${mat(it.mat).nome} – ${brl(precoItem(it))}` });
+  renderOrc();
+};
+$("aprovar").onclick = aprovar;
+$("novo").onclick = () => { orc = { num: ++orcNum, itens: [], status: "ABERTO" }; $("cliente").value = ""; $("qMsg").className = "msg"; renderOrc(); $("cliente").focus(); };
+
+/* ======================= ESTADO INICIAL (exemplo) ======================= */
+orc.itens = [
+  { tipo: "banner", mat: "LONA440", l: 90, a: 120, qtd: 1, op: { bastao: false }, arquivo: EX_NOMES.banner },
+  { tipo: "adesivo", mat: "VINIL_BR", l: 30, a: 30, qtd: 50, op: { laminado: true, recorte: true }, arquivo: EX_NOMES.adesivo },
+  { tipo: "placa", mat: "PVC3MM", l: 60, a: 40, qtd: 2, op: { furos: 4 }, arquivo: EX_NOMES.placa },
+];
+rota(); montarProduto(); renderOrc(); renderEstoque(); renderLog();
+lerPDF(b64ToBytes(EXEMPLOS.banner), EX_NOMES.banner);
+</script>
+</body>
+</html>
